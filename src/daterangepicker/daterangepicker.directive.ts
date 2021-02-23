@@ -16,13 +16,28 @@ import {
   Output,
   EventEmitter,
   Renderer2,
-  HostBinding
+  HostBinding,
+  NgZone,
+  OnDestroy,
 } from '@angular/core';
+import { Directionality } from '@angular/cdk/bidi';
+import {
+  ConnectedPosition,
+  HorizontalConnectionPos,
+  Overlay,
+  OverlayRef,
+  PositionStrategy,
+  ScrollDispatcher,
+  VerticalConnectionPos
+} from '@angular/cdk/overlay';
 import { DaterangepickerComponent } from './daterangepicker.component';
 import { NG_VALUE_ACCESSOR } from '@angular/forms';
 import * as _moment from 'moment';
 import { LocaleConfig } from './daterangepicker.config';
 import { LocaleService } from './locale.service';
+import { ComponentPortal } from '@angular/cdk/portal';
+import { takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 const moment = _moment;
 
 @Directive({
@@ -38,16 +53,32 @@ const moment = _moment;
       provide: NG_VALUE_ACCESSOR,
       useExisting: forwardRef(() => DaterangepickerDirective), multi: true
     }
-]
+  ]
 })
-export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
+export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnDestroy {
   public picker: DaterangepickerComponent;
+  public overlayPicker: DaterangepickerComponent;
+  private datePickerPortal: ComponentPortal<DaterangepickerComponent>;
   private _onChange = Function.prototype;
   private _onTouched = Function.prototype;
   private _validatorChange = Function.prototype;
   private _disabled: boolean;
   private _value: any;
   private localeDiffer: KeyValueDiffer<string, any>;
+  /** Emits when the component is destroyed. */
+  private readonly _destroyed = new Subject<void>();
+
+  /** CDK Overlay fields */
+  overlayRef: OverlayRef | null;
+  originX: HorizontalConnectionPos = 'start';
+  originY: VerticalConnectionPos = 'bottom';
+  overlayX: HorizontalConnectionPos = 'start';
+  overlayY: VerticalConnectionPos = 'top';
+  isFlexible = true;
+  canPush = true;
+  offsetX = 0;
+  offsetY = 0;
+
   @Input()
   minDate: _moment.Moment
   @Input()
@@ -105,6 +136,9 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
   showCancel: boolean = false;
   @Input()
   lockStartDate: boolean = false;
+  // Overlay input
+  @Input()
+  ngxOverlay: boolean = false;
   // timepicker variables
   @Input()
   timePicker: Boolean = false;
@@ -117,7 +151,7 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
   @Input() closeOnAutoApply = true;
   _locale: LocaleConfig = {};
   @Input() set locale(value) {
-    this._locale = {...this._localeService.config, ...value};
+    this._locale = { ...this._localeService.config, ...value };
   }
   get locale(): any {
     return this._locale;
@@ -167,17 +201,39 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
     private _renderer: Renderer2,
     private differs: KeyValueDiffers,
     private _localeService: LocaleService,
-    private elementRef: ElementRef
+    private elementRef: ElementRef,
+    public overlay: Overlay,
+    public dir: Directionality,
+    private _scrollDispatcher: ScrollDispatcher,
+    private _ngZone: NgZone,
   ) {
     this.drops = 'down';
     this.opens = 'auto';
+    
+    // Without CDK Overlay
     const componentFactory = this._componentFactoryResolver.resolveComponentFactory(DaterangepickerComponent);
     viewContainerRef.clear();
     const componentRef = viewContainerRef.createComponent(componentFactory);
     this.picker = (<DaterangepickerComponent>componentRef.instance);
     this.picker.inline = false; // set inline to false for all directive usage
+
+    // With CDK Overlay
+    this.datePickerPortal = new ComponentPortal(DaterangepickerComponent, viewContainerRef, null, this._componentFactoryResolver);
+    this.createOverlay();
+    this.overlayPicker = this.overlayRef.attach(this.datePickerPortal).instance;
+    const container = this.overlayPicker.pickerContainer.nativeElement;
+    this.overlayPicker.inline = false;
+    this._renderer.setStyle(container, 'display', 'none');
   }
+
   ngOnInit() {
+
+    if(this.ngxOverlay) {
+      this.picker = null;
+      this.picker = this.overlayPicker;
+      this.overlayPicker = null;
+    }
+    
     this.picker.startDateChanged.asObservable().subscribe((itemChanged: any) => {
       this.startDateChanged.emit(itemChanged);
     });
@@ -214,11 +270,15 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
     this.picker.closeOnAutoApply = this.closeOnAutoApply;
   }
 
-  ngOnChanges(changes: SimpleChanges): void  {
+  ngOnChanges(changes: SimpleChanges): void {
     for (const change in changes) {
       if (changes.hasOwnProperty(change)) {
         if (this.notForChangesProperty.indexOf(change) === -1) {
-          this.picker[change] = changes[change].currentValue;
+          if(this.ngxOverlay) {
+            this.overlayPicker[change] = changes[change].currentValue;
+          } else {
+            this.picker[change] = changes[change].currentValue;
+          }
         }
       }
     }
@@ -233,6 +293,15 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
     }
   }
 
+  ngOnDestroy() {
+    if (this.overlayRef) {
+      this.overlayRef.dispose();
+      this.overlayRef = null;
+    }
+    this._destroyed.next();
+    this._destroyed.complete();
+  }
+
   onBlur() {
     this._onTouched();
   }
@@ -242,14 +311,27 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
       return;
     }
     this.picker.show(event);
-    setTimeout(() => {
-      this.setPosition();
-    });
+    if (this.ngxOverlay) {
+      let style = {
+        display: 'unset',
+        position: 'absolute'
+      }
+      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'position' ,style.position);
+      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'display' ,style.display);
+    } else {
+      setTimeout(() => {
+        this.setPosition();
+      });
+    }
   }
 
   hide(e?) {
     this.picker.hide(e);
+    if (this.ngxOverlay) { 
+      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'display', 'none');
+    }
   }
+
   toggle(e?) {
     if (this.picker.isShown) {
       this.hide(e);
@@ -273,7 +355,7 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
   }
   setDisabledState(state: boolean): void {
     this._disabled = state;
-}
+  }
   private setValue(val: any) {
     if (val) {
       this.value = val;
@@ -306,25 +388,25 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
     }
     if (this.opens === 'left') {
       style = {
-          top: containerTop,
-          left: (element.offsetLeft - container.clientWidth + element.clientWidth) + 'px',
-          right: 'auto'
+        top: containerTop,
+        left: (element.offsetLeft - container.clientWidth + element.clientWidth) + 'px',
+        right: 'auto'
       };
     } else if (this.opens === 'center') {
-        style = {
-          top: containerTop,
-          left: (element.offsetLeft  +  element.clientWidth / 2
-                  - container.clientWidth / 2) + 'px',
-          right: 'auto'
-        };
+      style = {
+        top: containerTop,
+        left: (element.offsetLeft + element.clientWidth / 2
+          - container.clientWidth / 2) + 'px',
+        right: 'auto'
+      };
     } else if (this.opens === 'right') {
-        style = {
-          top: containerTop,
-          left: element.offsetLeft  + 'px',
-          right: 'auto'
-        };
+      style = {
+        top: containerTop,
+        left: element.offsetLeft + 'px',
+        right: 'auto'
+      };
     } else {
-      const position = element.offsetLeft  +  element.clientWidth / 2 - container.clientWidth / 2;
+      const position = element.offsetLeft + element.clientWidth / 2 - container.clientWidth / 2;
       if (position < 0) {
         style = {
           top: containerTop,
@@ -334,9 +416,9 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
       }
       else {
         style = {
-            top: containerTop,
-            left: position + 'px',
-            right: 'auto'
+          top: containerTop,
+          left: position + 'px',
+          right: 'auto'
         };
       }
     }
@@ -388,5 +470,64 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck {
     if (!this.elementRef.nativeElement.contains(event.target)) {
       this.hide();
     }
+
   }
+
+  createOverlay() {
+    this.overlayRef = this.overlay.create({
+      positionStrategy: this.getOverlayPosition(),
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+      direction: this.dir.value,
+    });
+  }
+
+  getOverlayPosition(): PositionStrategy {
+    const defaultPositionList: ConnectedPosition[] = [{
+      originX: this.originX,
+      originY: this.originY,
+      overlayX: this.overlayX,
+      overlayY: this.overlayY,
+      offsetX: this.offsetX,
+      offsetY: this.offsetY
+    },
+    {
+      originX: 'start',
+      originY: 'top',
+      overlayX: 'start',
+      overlayY: 'bottom',
+    },
+    {
+      originX: 'start',
+      originY: 'bottom',
+      overlayX: 'start',
+      overlayY: 'top',
+    }
+    ];
+
+    const scrollableAncestors =
+      this._scrollDispatcher.getAncestorScrollContainers(this.elementRef);
+    console.log(scrollableAncestors);
+
+    const positionStrategy = this.overlay.position()
+      .flexibleConnectedTo(this.elementRef)
+      .withFlexibleDimensions(this.isFlexible)
+      .withPush(this.canPush)
+      .withViewportMargin(10)
+      .withGrowAfterOpen(true)
+      .withPositions(defaultPositionList)
+      .withScrollableContainers(scrollableAncestors);
+
+    positionStrategy.positionChanges.pipe(takeUntil(this._destroyed)).subscribe(change => {
+      if (this.picker) {
+        if (change.scrollableViewProperties.isOverlayClipped) {
+          // After position changes occur and the overlay is clipped by
+          // a parent scrollable then close the picker.
+          this._ngZone.run(() => this.hide());
+        }
+      }
+    });
+
+    return positionStrategy;
+  }
+  
 }
