@@ -506,7 +506,6 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
 
     let scrollableAncestors =
       this._scrollDispatcher.getAncestorScrollContainers(this.elementRef);
-    console.log(scrollableAncestors);
 
     const positionStrategy = this.overlay.position()
       .flexibleConnectedTo(this.elementRef)
