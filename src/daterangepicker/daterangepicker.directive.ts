@@ -209,7 +209,7 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
   ) {
     this.drops = 'down';
     this.opens = 'auto';
-    
+
     // Without CDK Overlay
     const componentFactory = this._componentFactoryResolver.resolveComponentFactory(DaterangepickerComponent);
     viewContainerRef.clear();
@@ -228,12 +228,12 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
 
   ngOnInit() {
 
-    if(this.ngxOverlay) {
+    if (this.ngxOverlay) {
       this.picker = null;
       this.picker = this.overlayPicker;
       this.overlayPicker = null;
     }
-    
+
     this.picker.startDateChanged.asObservable().subscribe((itemChanged: any) => {
       this.startDateChanged.emit(itemChanged);
     });
@@ -274,7 +274,7 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
     for (const change in changes) {
       if (changes.hasOwnProperty(change)) {
         if (this.notForChangesProperty.indexOf(change) === -1) {
-          if(this.ngxOverlay) {
+          if (this.ngxOverlay) {
             this.overlayPicker[change] = changes[change].currentValue;
           } else {
             this.picker[change] = changes[change].currentValue;
@@ -316,8 +316,8 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
         display: 'unset',
         position: 'absolute'
       }
-      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'position' ,style.position);
-      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'display' ,style.display);
+      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'position', style.position);
+      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'display', style.display);
     } else {
       setTimeout(() => {
         this.setPosition();
@@ -327,7 +327,7 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
 
   hide(e?) {
     this.picker.hide(e);
-    if (this.ngxOverlay) { 
+    if (this.ngxOverlay) {
       this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'display', 'none');
     }
   }
@@ -504,7 +504,7 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
     }
     ];
 
-    const scrollableAncestors =
+    let scrollableAncestors =
       this._scrollDispatcher.getAncestorScrollContainers(this.elementRef);
     console.log(scrollableAncestors);
 
@@ -519,15 +519,24 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
 
     positionStrategy.positionChanges.pipe(takeUntil(this._destroyed)).subscribe(change => {
       if (this.picker) {
+        if (scrollableAncestors.length === 0) {
+          // Update registered scrollables
+          scrollableAncestors = this._scrollDispatcher.getAncestorScrollContainers(this.elementRef);
+          positionStrategy.withScrollableContainers(scrollableAncestors);
+        }
         if (change.scrollableViewProperties.isOverlayClipped) {
           // After position changes occur and the overlay is clipped by
           // a parent scrollable then close the picker.
           this._ngZone.run(() => this.hide());
+        } else if (!change.scrollableViewProperties.isOverlayClipped && (this.elementRef.nativeElement === document.activeElement)) {
+          // After position changes occur and the overlay is clipped is not clipped by
+          // a parent scrollable then open the picker.
+          this._ngZone.run(() => this.open());
         }
       }
     });
 
     return positionStrategy;
   }
-  
+
 }
