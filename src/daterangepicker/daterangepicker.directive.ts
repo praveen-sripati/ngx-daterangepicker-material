@@ -67,6 +67,7 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
   private localeDiffer: KeyValueDiffer<string, any>;
   /** Emits when the component is destroyed. */
   private readonly _destroyed = new Subject<void>();
+  private _pickerRef: DaterangepickerComponent;
 
   /** CDK Overlay fields */
   overlayRef: OverlayRef | null;
@@ -176,7 +177,8 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
   notForChangesProperty: Array<string> = [
     'locale',
     'endKey',
-    'startKey'
+    'startKey',
+    'ngxOverlay',
   ];
 
   get value() {
@@ -216,22 +218,26 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
     const componentRef = viewContainerRef.createComponent(componentFactory);
     this.picker = (<DaterangepickerComponent>componentRef.instance);
     this.picker.inline = false; // set inline to false for all directive usage
+    this._pickerRef = this.picker;
 
     // With CDK Overlay
     this.datePickerPortal = new ComponentPortal(DaterangepickerComponent, viewContainerRef, null, this._componentFactoryResolver);
     this.createOverlay();
     this.overlayPicker = this.overlayRef.attach(this.datePickerPortal).instance;
-    const container = this.overlayPicker.pickerContainer.nativeElement;
     this.overlayPicker.inline = false;
-    this._renderer.setStyle(container, 'display', 'none');
   }
 
   ngOnInit() {
 
     if (this.ngxOverlay) {
-      this.picker = null;
       this.picker = this.overlayPicker;
-      this.overlayPicker = null;
+    } else {
+      // TODO: dispose and create logic
+      // if (this.overlayRef) {
+      //   this.overlayRef.dispose();
+      //   this.overlayRef = null;
+      // }
+      this.picker = this._pickerRef;
     }
 
     this.picker.startDateChanged.asObservable().subscribe((itemChanged: any) => {
@@ -271,14 +277,14 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes.hasOwnProperty('ngxOverlay')) {
+      this.picker = changes.ngxOverlay.currentValue ?  this.overlayPicker : this._pickerRef;
+    }
     for (const change in changes) {
       if (changes.hasOwnProperty(change)) {
         if (this.notForChangesProperty.indexOf(change) === -1) {
-          if (this.ngxOverlay) {
-            this.overlayPicker[change] = changes[change].currentValue;
-          } else {
-            this.picker[change] = changes[change].currentValue;
-          }
+          this._pickerRef[change] = changes[change].currentValue;
+          this.overlayPicker[change] = changes[change].currentValue;
         }
       }
     }
@@ -311,14 +317,8 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
       return;
     }
     this.picker.show(event);
-    if (this.ngxOverlay) {
-      let style = {
-        display: 'unset',
-        position: 'absolute'
-      }
-      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'position', style.position);
-      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'display', style.display);
-    } else {
+    
+    if (!this.ngxOverlay) {
       setTimeout(() => {
         this.setPosition();
       });
@@ -327,9 +327,6 @@ export class DaterangepickerDirective implements OnInit, OnChanges, DoCheck, OnD
 
   hide(e?) {
     this.picker.hide(e);
-    if (this.ngxOverlay) {
-      this._renderer.setStyle(this.picker.pickerContainer.nativeElement, 'display', 'none');
-    }
   }
 
   toggle(e?) {
