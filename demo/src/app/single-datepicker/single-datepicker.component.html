@@ -3,10 +3,11 @@
   <div class="col s6">
     <input type="text"
     ngxDaterangepickerMd
+    [ngxOverlay]="true"
     [isInvalidDate]="isInvalidDate"
     [isCustomDate]="isCustomDate"
     [locale]="locale"
-    [(ngModel)]="selected" [singleDatePicker]="true" [autoApply]="true" class="form-control"/>
+    [(ngModel)]="selected" [singleDatePicker]="true" [autoApply]="true" [showWeekNumbers]="true" class="form-control"/>
   </div>
 </div>
 

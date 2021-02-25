@@ -11,6 +11,7 @@ export class FullComponent implements OnInit {
 
   title = 'Pure angular daterangepicker';
   options: any = {
+    ngxOverlay: true,
     autoApply: false,
     alwaysShowCalendars: false,
     showCancel: false,

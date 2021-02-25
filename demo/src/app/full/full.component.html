@@ -5,6 +5,7 @@
     <div class="col s6">
         <input type="text" matInput
           ngxDaterangepickerMd
+          [ngxOverlay]="options.ngxOverlay"
           [autoApply]="options.autoApply"
           [linkedCalendars]="options.linkedCalendars"
           [singleDatePicker]="options.singleDatePicker"
@@ -45,6 +46,7 @@
         <h4>Timepicker</h4>
         <strong>enable timepicker:</strong>  <mat-checkbox [(ngModel)]="timePicker">Value: {{timePicker}}</mat-checkbox><br/>
         <h4>Options:</h4>
+        <strong>ngxOverlay:</strong>  <mat-checkbox [(ngModel)]="options.ngxOverlay">Value: {{options.ngxOverlay}}</mat-checkbox><br/>
         <strong>autoApply:</strong>  <mat-checkbox [(ngModel)]="options.autoApply">Value: {{options.autoApply}}</mat-checkbox><br/>
         <strong>closeOnAutoApply:</strong><mat-checkbox [(ngModel)]="options.closeOnAutoApply">Value: {{options.closeOnAutoApply}}</mat-checkbox><br/>
         <strong>showCancel:</strong>  <mat-checkbox [(ngModel)]="options.showCancel">Value: {{options.showCancel}}</mat-checkbox><br/>

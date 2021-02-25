@@ -5,6 +5,7 @@ import { CustomRangesComponent } from './custom-ranges/custom-ranges.component';
 import { SingleDatepickerComponent } from './single-datepicker/single-datepicker.component';
 import { TimepickerComponent } from './timepicker/timepicker.component';
 import { ReactiveFormComponent } from './reactive-form/reactive-form.component';
+import { FullWithOverlay } from './full-with-overlay/full-with-overlay.component';
 
 export const AppRoutes: Routes = [
     {
@@ -35,5 +36,9 @@ export const AppRoutes: Routes = [
     {
         path: 'reactive-forms',
         component: ReactiveFormComponent,
+    },
+    {
+        path: 'full-with-overlay',
+        component: FullWithOverlay,
     }
 ];

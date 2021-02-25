@@ -1,0 +1,72 @@
+<mat-toolbar>{{title}}</mat-toolbar>
+
+<mat-card>
+  <div class="row">
+    <div class="col s6">
+        <input type="text" matInput
+          ngxDaterangepickerMd
+          [ngxOverlay]="true"
+          [autoApply]="false"
+          [linkedCalendars]="true"
+          [singleDatePicker]="true"
+          applyLabel="Okay"
+          [locale]="locale"
+          [showDropdowns]="true"
+          startKey="start"
+          endKey="end"
+          [(ngModel)]="selected"
+          (click)="click()"
+          [minDate]="minDate"
+          [maxDate]="maxDate"
+          [showWeekNumbers]="true"
+          [showCancel]="true"
+          [showClearButton]="true"
+          [showISOWeekNumbers]="true"
+          [customRangeDirection]="true"
+          [lockStartDate]="true"
+          [closeOnAutoApply]="false"
+          firstMonthDayClass="first-day"
+          lastMonthDayClass="last-day"
+          emptyWeekRowClass="empty-week-row"
+          emptyWeekColumnClass="empty-week-column"
+          lastDayOfPreviousMonthClass="last-previous-day"
+          firstDayOfNextMonthClass="first-next-day"
+          [opens]="opens"
+          [drops]="drops"
+          [timePicker]="timePicker"
+          [dateLimit]="dateLimit"
+          name="daterange"
+          (startDateChanged)="eventClicked($event)"
+          (endDateChanged)="eventClicked($event)"
+          />
+    </div>
+    <div class="col s6">
+        <h4>Options:</h4>
+        <strong>autoApply:</strong>true<br/>
+        <strong>closeOnAutoApply:</strong>false<br/>
+        <strong>showCancel:</strong>true<br/>
+        <strong>showClearButton:</strong>true<br/>
+        <strong>linkedCalendars:</strong>true<br/>
+        <strong>singleDatePicker:</strong>false<br/>
+        <strong>showWeekNumbers:</strong>true<br/>
+        <strong>showISOWeekNumbers:</strong>true<br/>
+        <strong>customRangeDirection:</strong>true<br/>
+        <strong>lockStartDate:</strong>true<br/>
+        <strong>minDate:</strong>  {{minDate | date: 'dd/MM/yyyy'}}<br/>
+        <strong>maxDate:</strong>  {{maxDate | date: 'dd/MM/yyyy'}}<br/>
+        <strong>locale</strong> : <br/>
+        <div class="">
+          <div class="row">
+            <div class="col s12">
+              {{locale | json}}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col s6">
+              <button mat-raised-button color="warn" (click)="clear()">Clear</button>
+            </div>
+          </div>
+        </div>
+    </div>
+  </div>
+</mat-card>
